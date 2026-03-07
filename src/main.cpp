@@ -21,7 +21,6 @@ void setup() {
 
   pixel.begin();
   pixel.clear();
-  pixel.show(); 
 
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
@@ -68,16 +67,17 @@ void loop() {
     sum += abs(s);
   }
 
-  int avg = (int)(sum / (num_samples * 1000));
+  int avg = (int)(sum / (num_samples));
   Serial.println(avg);
   delay(1000); 
 
   // LED báo âm thanh
-  if (avg > 1000) {
+  if (avg > 100) {
     pixel.setPixelColor(0, pixel.Color(0, 255, 0)); // xanh
+    pixel.show();
   } 
   else {
-    pixel.setPixelColor(0, pixel.Color(0, 0, 0)); 
+    pixel.clear(); 
+    pixel.show();
   }
-  pixel.show(); 
 }
