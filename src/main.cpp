@@ -8,25 +8,27 @@
 #define SAMPLE_RATE 16000
 #define LED_PIN 48
 #define NUM_PIXELS 1
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 512
 
 Adafruit_NeoPixel pixel(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
+int32_t samples[BUFFER_SIZE];
+int16_t pcm[BUFFER_SIZE]; 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   delay(1000);
   Serial.println("🔊 ESP32-S3 + INMP441 bắt đầu...");
 
   pixel.begin();
   pixel.clear();
-  pixel.show();
+  pixel.show(); 
 
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
-    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+    .communication_format = I2S_COMM_FORMAT_STAND_MSB,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 8,
     .dma_buf_len = BUFFER_SIZE,
@@ -42,40 +44,40 @@ void setup() {
     .data_in_num = I2S_SD
   };
 
-  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  if (err != ESP_OK) {
+    Serial.printf("❌ I2S install lỗi: %d\n", err);
+    return;
+  }
   i2s_set_pin(I2S_NUM_0, &pin_config);
   i2s_start(I2S_NUM_0);
-
   Serial.println("✅ Sẵn sàng thu âm...");
 }
 
 void loop() {
-  int32_t samples[BUFFER_SIZE];
-  size_t bytes_read;
-  i2s_read(I2S_NUM_0, (char *)samples, sizeof(samples), &bytes_read, portMAX_DELAY);
+  size_t bytes_read = 0;
+  i2s_read(I2S_NUM_0, samples, sizeof(samples), &bytes_read, portMAX_DELAY);
 
-  int num_samples = bytes_read / 4;
-  int16_t pcm[num_samples];
-  long sum = 0;
+  int num_samples = bytes_read / sizeof(int32_t);
+  if(num_samples == 0) return; 
+  int64_t sum = 0;
 
-  for (int i = 0; i < num_samples; i++) {
-    int16_t s = samples[i] >> 11;
+  for(int i = 0; i < num_samples; i++) {
+    int16_t s = (int16_t)(samples[i] >> 16);
     pcm[i] = s;
     sum += abs(s);
   }
 
-  int avg = sum / num_samples;
+  int avg = (int)(sum / (num_samples * 1000));
   Serial.println(avg);
+  delay(1000); 
 
   // LED báo âm thanh
-  if (avg > 100) {
+  if (avg > 1000) {
     pixel.setPixelColor(0, pixel.Color(0, 255, 0)); // xanh
-    pixel.show();
-  } else {
-    pixel.clear();
-    pixel.show();
+  } 
+  else {
+    pixel.setPixelColor(0, pixel.Color(0, 0, 0)); 
   }
-
-  // Gửi dữ liệu PCM sang máy tính (ghi file .wav)
-  Serial.write((uint8_t *)pcm, num_samples * 2);
+  pixel.show(); 
 }
