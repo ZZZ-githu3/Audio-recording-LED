@@ -15,7 +15,7 @@ int32_t samples[BUFFER_SIZE];
 int16_t pcm[BUFFER_SIZE]; 
 
 void setup() {
-  Serial.begin(921600);
+  Serial.begin(115200);
   delay(1000);
   Serial.println("🔊 ESP32-S3 + INMP441 bắt đầu...");
 
@@ -27,7 +27,7 @@ void setup() {
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
-    .communication_format = I2S_COMM_FORMAT_STAND_MSB,
+    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 8,
     .dma_buf_len = BUFFER_SIZE,
@@ -44,15 +44,8 @@ void setup() {
   };
 
   esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
-  if (err != ESP_OK) {
-    Serial.printf("❌ I2S install lỗi: %d\n", err);
-    return;
-  }
   i2s_set_pin(I2S_NUM_0, &pin_config);
-  i2s_start(I2S_NUM_0);
-  Serial.println("✅ Sẵn sàng thu âm...");
 }
-
 void loop() {
   size_t bytes_read = 0;
   i2s_read(I2S_NUM_0, samples, sizeof(samples), &bytes_read, portMAX_DELAY);
@@ -67,17 +60,17 @@ void loop() {
     sum += abs(s);
   }
 
-  int avg = (int)(sum / (num_samples));
+  int avg = sum / num_samples;
   Serial.println(avg);
-  delay(1000); 
+  delay(10); 
 
   // LED báo âm thanh
   if (avg > 100) {
-    pixel.setPixelColor(0, pixel.Color(0, 255, 0)); // xanh
+    pixel.setPixelColor(0, pixel.Color(0,255,0));
     pixel.show();
-  } 
+  }
   else {
-    pixel.clear(); 
+    pixel.clear();
     pixel.show();
   }
 }
